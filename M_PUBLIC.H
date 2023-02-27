@@ -1,0 +1,63 @@
+; FILE M_PUBLIC.H
+; DATE 11-26-94
+
+  
+
+        PUBLIC  CONTROL_INPUT
+        PUBLIC  CONTROL_OUTPUT
+        PUBLIC  GET_CHR
+        PUBLIC  PUT_CHR
+        PUBLIC  GET_PUT_CHR
+        PUBLIC  GET_PUT_HEX
+        PUBLIC  DISP_LCD_HEADER
+        PUBLIC  SEND_CR
+        PUBLIC  SEND_SPACE
+        PUBLIC  SEND_BKSP
+
+
+
+
+
+
+        PUBLIC  GET_STR
+  		  PUBLIC  PUT_STR
+	     PUBLIC  GET_BIN_NUM
+
+        PUBLIC  GET_3BYTE_ADDR
+        PUBLIC  SEND_HEX_OUT
+
+
+        PUBLIC  TIME_DATE_CHK
+        PUBLIC  MENU_POINT
+        PUBLIC  MENU_SETUP
+        PUBLIC  CHECK_YN
+        PUBLIC  Get_HiLo
+        PUBLIC  GET_MODEM_RESPONSE
+        PUBLIC  MODEM_ANSWER
+        PUBLIC  MODEM_REDIAL
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		.END
+

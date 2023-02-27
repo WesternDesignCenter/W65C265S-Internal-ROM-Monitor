@@ -1,0 +1,442 @@
+;FILE:  'ROM_INIT.ASM - Initial Code  MENSCH'
+;DATE: 02-06-1995
+
+
+	  STTL 'INITIALIZATION ROUTINE'
+	  PAGE
+
+	  CODE
+
+	  LONGA OFF
+	  LONGI OFF
+	  ORG $00:E0B0
+
+RESET     EQU *
+
+	  IFNZ IROM
+
+	  LDA #$01     ;ENABLE EXT BUS ONLY
+	  STA BCR
+	  BRA START
+
+	  ELSE
+
+	  LDA #$C9     ;ENABLE EXT ROM, NMI, ICE & EXT BUS
+	  STA BCR
+	  LDA #$3B     ;ENABLE CS5, CS4, CS3, CS1 & CS0
+	  STA PCS7
+	  BRA START
+
+	  ENDIF
+
+
+MONVER:
+	  BYTE 'MENSCH ROM Version '
+MONVRS    BYTE '2.07',$0D
+	  BYTE ' (C) Copyright 1995',$0D
+	  BYTE 'Assembled '
+MONDATE   DATE
+MONVEND:  DS  4             ;EVEN UP WITH OLD LISTING
+
+WDC       BYTE 'WDC'
+
+
+
+;*   START  is the normal restart point for the
+;*      Mensch computer software. All previous
+;*      setup conditions are lost.
+;*
+
+
+START     EQU *
+	  SEI
+	  CLC          ;GOTO 65C265 NATIVE MODE
+	  XCE
+	  REP #X8+$08  ;SET Index & CLEAR DECIMAL MODE (CLD)
+
+	  LONGI ON
+
+	  LDX #$01FF   ;SETUP  STACK
+	  TXS          ;CHANGE STACK
+
+	  IFNZ IROM
+
+	  LDA #$20     ;ENABLE EXTERNAL RAM $40
+		       ;BIT 5-PCS75  SEL 4Meg ie BANKS 00-3F
+	  STA PCS7
+CHKAGAIN:              ;CHECK PCMCIA CARD
+	  LDX #$00
+CHKPCMLP  LDA !$8000,X ;CHK FOR EXTERNAL ROM
+	  CMP !WDC,X
+	  BNE CHKLROM
+	  INX
+	  CPX #3
+	  BNE CHKPCMLP
+	  JMP $8004    ;JMP TO EXTERNAL ROM
+
+
+
+CHKLROM:
+	  LDA #Bit4    ;HAVE WE CHECKED 00:8000  CS4 ?
+	  TSB PCS7
+	  BEQ CHKAGAIN ;NO
+
+		       ;ENABLE $8000 & RAM ($0200-$7FFF)
+		       ;BIT 0-PCS70  SEL PORT REPLACEMENT
+		       ;BIT 3-PCS73  SEL 000200-007FFF  'CACHE' MEMORY
+		       ;BIT 4-PCS74  SEL 8000-DEFF & E000-FFFF ROM
+		       ;BIT 5-PCS75  SEL 4Meg ie BANKS 00-3F
+		       ;SO WE CAN CK THE 'WDC'
+
+	  LDA #Bit3
+
+	  ELSE
+
+	  LDA #Bit4+Bit3
+
+	  ENDIF
+
+	  STA PCS7
+
+CHKRAM:                ;NOW WE CHECK 00:0800  CS3
+	  LDX #$00
+
+CHKRAM1   LDA !$800,X  ;CHK FOR EXTERNAL RAM
+	  CMP !WDC,X
+	  BNE NOEXTMEM
+	  INX
+	  CPX #3
+	  BNE CHKRAM1
+	  JMP $804     ;JMP TO EXTERNAL RAM
+
+
+;
+;        Reset all regs to reset values (in case we had a JMP reset rather
+;        than a hard reset.  Exception is TCR1 because the chip will die if 
+;        we switch to slow clock and shut off fast clock simultaniously, 
+
+NOEXTMEM:
+
+	  LDA #$FB     ;ENABLE $8000 & RAM ($0200-$7FFF)
+		       ;BIT 0-PCS70  SEL DF00-DF1F VIA1
+		       ;BIT 1-PCS71  SEL DFC0-DFEF VIA2
+		       ;BIT 2-PCS72  NOT USED
+		       ;BIT 3-PCS73  SEL 000200-007FFF  'CACHE' MEMORY
+		       ;BIT 4-PCS74  SEL 8000-DEFF & E000-FFFF ROM
+		       ;BIT 5-PCS75  SEL 4Meg ie BANKS 00-3F
+		       ;BIT 6-PCS76  SEL 8Meg ie BANKS 40-BF
+		       ;BIT 7-PCS77  SEL 4Meg ie BANKS CO-FF
+	  STA PCS7
+		       ;START FAST CLOCK BUT DO NOT USE YET
+	  LDA #$F9     ;AND HAVE ALL CHIP SELECTS AS 1 TO 1 DIVIDE
+	  STA SSCR
+
+	  LDA #$C0
+	  STA PDD4
+	  LDA #Bit7
+	  STA PD4      ;BIT 6 = RESET*,  BIT 7 = RESET
+	  NOP
+	  NOP
+	  LDA #Bit6    ;END RESET OF PERIPHERALS
+	  STA PD4
+
+	  LDA #Bit0+Bit2+Bit4+Bit6
+	  STA PDD5
+	  STZ PD5      ;ALL DTR'S TO BE LOW UNTIL PWR ON
+
+	  LDA #Bit1+Bit3+Bit5+Bit7
+	  STA PDD6     ;PLACE TXD'S IN OUTPUT MODE
+	  STZ PD6      ;ALL TXD'S TO BE LOW UNTIL PWR ON
+
+
+	  LDA #$FF
+	  STA PD7
+
+	  STZ PD_TIMER ;TIMES OUT FOR POWER DOWN
+	  STZ PD_TIMER+1
+
+	  STZ TER
+	  STZ TIFR
+	  STZ TIER
+	  STZ TCR
+	  STZ UIER
+	  STZ UIFR
+	  STZ EIFR
+	  STZ SB_SENTL
+
+	  STZ EIER
+	 
+	  LDX #0       ;RESET PWR DOWN SENTINALS
+	  STX PWD_CELLS
+	  BRA MONSUP1
+
+
+MXTALCALC EQU *        ;MAX VALUE OF T1CL ALLOWABLE
+	  BYTE $97     ;1.8432MHZ       X=0
+	  BYTE $F2     ;2.4576MHZ       X=1
+	  BYTE $4D     ;3.6864MHZ       X=2
+	  BYTE $7B     ;4.9152MHZ       X=3
+	  BYTE $12     ;6.1440MHZ       X=4
+
+MINXTALCALC EQU *      ;MIN VALUE OF T1CL ALLOWABLE
+	  BYTE $92     ;1.8432MHZ
+	  BYTE $EE     ;2.4576MHZ
+	  BYTE $48     ;3.6864MHZ
+	  BYTE $77     ;4.9152MHZ
+	  BYTE $0A     ;6.1440MHZ
+MXTLEND   EQU *
+
+MONIRQTBL EQU *        ;USER INTERRUPTS
+	  JML SBREAK   ;UBRK
+	  JML NMIBRK   ;UNMI
+	  JML RESET    ;UIRQ
+	  JML RESET    ;USER CO-PROCESSOR
+	  JML RESET    ;ABORT INTERRUPT
+	  JML RESET    ;PIBIRQ
+	  JML RESET    ;EDGEIRQS
+	  JML RESET    ;UIRQT7
+	  JML RESET    ;UIRQT2
+	  JML TODIRQ   ;UIRQT1
+	  JML RESET    ;UIRQT0
+	  JML RESET    ;USER COMMAND
+	  JML RESET    ;USER SUPPLIED RESTART
+MONIRQEND EQU *
+
+; UALRMIRQ DOES NOT GET INITIALIZED BY THIS ROUTINE
+; ITS A USER PROBLEM!
+
+MONSUP1   EQU *
+
+	  REP #X8
+	  LONGI ON
+
+	  LDX #$100     ;WAIT FOR FCLOCK TO START
+DLY0      DEX
+	  BNE DLY0
+	  LDA #$02+$08   ;ENABLE FAST CLOCK
+	  TSB SSCR
+
+	  LDX #$4000
+DLY1      DEX            ;ALLOW TIME TO STABILIZE ON FCLOCK
+	  BNE DLY1
+
+			 ;SETUP TIMER #1 SO WE CAN USE IT TO DETERMINE
+			 ;THE FAST CLOCK SPEED
+
+         LDA #<32767    ;SET TIMER 1 FOR
+         STA T1CL       ;1 SECOND IRQ
+         LDA #>32767
+         STA T1CH
+         LDA #T1FLG     ;ENABLE TIMER 1 IRQS
+         TSB TER
+         TSB TIER
+
+
+         LDX #$1000      ;CK MAIN XTAL SPEED
+     
+T1ZERO   LDA T1CH
+         ORA T1CL       ;WAIT UNTIL TOD CLOCK
+         BNE T1ZERO     ;READY TO LOAD
+     
+T1DELAY  DEX            ;NOW WAIT A PREDETERMINED
+         BNE T1DELAY    ;AMT OF TIME TO CALC XTAL
+
+         SEP #X8
+         .LONGI OFF
+
+         LDA T1CL       ;CK A RANGE OF #'S
+     
+         LDX #MINXTALCALC-MXTALCALC
+TRYMXTAL CMP !MXTALCALC-1,X
+         BLT TRYMINXTAL
+         DEX
+         BNE TRYMXTAL
+
+TRYMINXTAL CMP !MINXTALCALC-1,X
+         BGE MXTALFND
+         DEX
+         BNE TRYMXTAL
+
+         LDX #3         ;DEFAULT 3.6864 MHZ
+
+MXTALFND EQU *
+         DEX
+         STX SPEED      ;SAVE MAIN XTAL SPEED
+
+         REP #X8
+         .LONGI ON
+
+
+        ;SETUP ALL COMMON USER INTERRUPTS
+        ;IN LOWER PART OF PAGE 0
+
+         LDX #MONIRQEND-MONIRQTBL 
+FUIRQS   LDA !MONIRQTBL,X
+	 STA >UBRK,X
+         DEX
+         BPL FUIRQS
+
+        ;SETUP TIME OF DAY CLOCK
+
+         LDX #DFLTSEND-DFLTS-1 
+         LDA #00
+         CLC
+CKTODLP  ADC !DAYWK-1,X    ;CK IF VALID TOD CLOCK
+         DEX
+         BNE CKTODLP
+         ADC T4LL
+         ADC T4LH       ;ADD SERIAL BAUD RATE CLOCK
+     
+         EOR #$FF
+	 CMP >TODCKS
+         BEQ GDTOD
+
+        ;USE DEFAULT SETTING IF CHKSUM IS NG
+
+         LDX #DFLTSEND-DFLTS-1 ;LOAD TOD DEFAULT
+ICLK1    LDA !DFLTS-1,X
+
+         STA !DAYWK-1,X
+         DEX
+         BNE ICLK1
+         LDX #DFLTSEND-DFLTS-1 ;RESET ALARM CLOCK ALSO
+ICLK2    STZ !ADAYWK-1,X
+         DEX
+         BNE ICLK2
+
+         JSR CLOCK_CK_SUM  ;MAKE NEW CLOCK CHECKSUM
+         STZ FLAGS      ;CLEAR ALARM FLAGS ON RAM LOSS
+
+                        ;SETUP ALL 4 SERIAL PORTS
+GDTOD    LDA #8         ;9600
+         JSL SELECT_COMMON_BAUD_RATE ;INITIALIZE ACIA'S. 0,1,3
+                        ;hardware handshake is OFF
+	 STZ <ERRORS
+         LDX #0
+	 STX <T_TIME
+
+         LDA #$FF-XONOFLG
+	 TRB <SFLAG0     ;reset all of SFLAG except XON/XOFF,
+	 TRB <SFLAG0+1   ;leave it in old state.
+	 TRB <SFLAG0+2
+	 TRB <SFLAG0+3
+
+         JSR SIOPORTS
+
+         LDA #RES_COMP  ;WE NEED RESET COMPENSATION
+         TSB FLAGS      ;ADD 2 SEC'S TO TOD CLOCK TO
+                        ;COMPENSATE FOR IRQ DEAD TIME
+            
+
+RET_TO_MENSCH:
+
+         LDX #$00
+CHK_MROM   LDA !$DEF8,X    ;CHK FOR MENSCH EPROM
+         CMP !WDC,X
+         BNE DO_STD
+         INX
+         CPX #3
+         BNE CHK_MROM
+         JMP $DEFC       ;JMP TO MENSCH COMPUTER EPROM
+
+DO_STD:
+
+	 LDX #RTL_EXIT
+	 STX <CLR_LCD_JMP
+	 STX <DISP_LCD_JMP
+	 STX <TXT_CUR_JMP
+	 STX <SND_BEEP_JMP
+         LDX DO_LOW_PWR_PGM
+	 STX <LO_PWR_JMP
+
+	 JSR SET_GET_PUT_CHR  ;ROM SETUP FOR I/O
+
+
+	 LDX #10 	;SET BUFFER SIZES
+	 STX <SINCNT0
+	 STX <SINCNT1
+	 STX <SINCNT2
+	 STX <SINCNT3
+	 STX <SOUTCNT0
+	 STX <SOUTCNT1
+	 STX <SOUTCNT2
+	 STX <SOUTCNT3
+
+	 LDX #ROM_IBUF0	;LOCATE BUFFERS IN 265 RAM
+	 STX <SIN_BUF0
+	 LDX #ROM_IBUF1
+	 STX <SIN_BUF1
+	 LDX #ROM_IBUF2
+	 STX <SIN_BUF2
+	 LDX #ROM_IBUF3
+	 STX <SIN_BUF3
+
+
+	 LDX #ROM_OBUF0	;LOCATE BUFFERS IN 265 RAM
+	 STX <SOUTBUF0
+	 LDX #ROM_OBUF1
+	 STX <SOUTBUF1
+	 LDX #ROM_OBUF2
+	 STX <SOUTBUF2
+	 LDX #ROM_OBUF3
+	 STX <SOUTBUF3
+
+
+
+; Initialize Port3 (HOST)
+
+	 LDX #0		;CLR input buffer
+	 STX <SINEND3
+	 STX <SININDX3
+	 STX <SOUTINDX3  ;clear output buffer
+	 STX <SOUTEND3
+	 LDA #Bit2	;xon-xoff
+	 TSB <SFLAG3
+
+	 LDA #Bit3	;PORT 3 OUTPUT
+	 STA <OUTPUT_XTRL
+
+         LDA SEGA_DATA_REG+4   ;VIA COUNTER
+         CMP SEGA_DATA_REG+4
+         BEQ ?NM
+         LDA #Bit3
+         TRB PWR_XTRL_REG  ;LOW = ON
+         TSB PWR_XTRL_DIR
+	 STA <INPUT_XTRL
+
+         LDA #A_MENSCH  ;SET A FLAG FOR PWR DWN
+	 TSB <DISPTYP
+
+?NM      LDA #Bit7
+         TSB PDD6       ;PUTS TXD IN MARK HOLD
+         TSB PD6
+
+	 LDA #Bit6	;set DTR
+	 TRB PD5	;LOW = TRUE
+
+	 LDA #Bit5	;turn on receive
+	 TSB ACSR3
+	 LDA #Bit6+Bit7 ;Rec & xmit interrupt
+	 TSB UIER
+
+         LDA #ALRMIRQ
+	 TRB <DISPTYP
+         BNE ?NA
+	 LDA >UALRMIRQ
+         CMP #$5C       ;JUMP LONG IN-PLACE
+         BNE ?NA
+         JMP UALRMIRQ
+
+?NA      CLI
+         JSL SEND_CR
+
+         LDX #MONVER
+         LDA #0
+	 JSL PUT_STR
+
+	 BRK    ;ENTER MONITOR
+
+	 ENDS
+
+	 APPEND R_MAIN.ASM
+

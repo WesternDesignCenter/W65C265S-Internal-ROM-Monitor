@@ -1,0 +1,52 @@
+;FILE:  ASCII.H
+;DATE:  11-10-94
+
+	  DATA
+
+	  STTL 'ASCII CODES USED IN MENSCH ROM'
+	  PAGE
+
+NULL      EQU     0
+SOH       EQU     01   ;START OF HEADER
+STX       EQU     02   ;START of TEXT
+ETX       EQU     03   ;END of TEXT
+EOT       EQU     04   ;END OF TRANSMISSION
+ENQ       EQU     05   ;ENQUIRE
+ACK       EQU     06   ;ACKNOWLEDGEMENT
+BELL      EQU     07
+
+BKSP      EQU     08   ;BACKSPACE
+HTAB      EQU     09   ;HORIZONTAL TAB
+L_FEED    EQU     $0A  ;LINE FEED
+VTAB      EQU     $0B  ;VERTICAL TAB
+FORM_FEED EQU     $0C
+C_RETURN  EQU     $0D
+SO        EQU     $0E  ;SHIFT_OUT
+SI        EQU     $0F  ;SHIFT IN
+
+DC1       EQU     $11  ;DEVICE CONTROL 1
+DC2       EQU     $12  ;DEVICE CONTROL 2
+DC3       EQU     $13  ;DEVICE CONTROL 3
+DC4       EQU     $14  ;DEVICE CONTROL 4
+NAK       EQU     $15  ;NEGATIVE ACKNOWLEDGEMENT
+SYN       EQU     $16  ;SYNC CHARACTER
+ETB       EQU     $17  ;END of TRANSMISSION BLOCK
+
+CAN       EQU     $18  ;CANCEL
+EM        EQU     $19  ;END of MESSAGE
+SUB       EQU     $1A  ;SUBSITUTE
+ESC       EQU     $1B  ;ESCAPE
+FS        EQU     $1C  ;FIELD SEPARATOR
+GS        EQU     $1D  ;GROUP SEPARATOR
+RS        EQU     $1E  ;RECORD SEPARATOR
+US        EQU     $1F  ;UNIT SEPARATOR
+
+
+XON       EQU     DC1  ;PUNCH (SEND) ON
+XOFF      EQU     DC3  ;PUNCH (SEND) OFF
+
+	  ENDS
+
+	  APPEND E_VECTOR.H
+
+
